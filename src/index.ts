@@ -59,11 +59,6 @@ wss.on('connection', (ws) => {
                 console.log(`Solución de CAPTCHA recibida: ${captchaSolution}`);
                 
                 await page.locator('#ctl00_MainContent_TxtCaptchaNumbers').type(captchaSolution);
-
-                // ✅ PRIMERA CAPTURA DE PANTALLA: Justo antes de hacer clic.
-                await page.screenshot({ path: 'debug-before-click.png' });
-                console.log('Captura de depuración guardada: debug-before-click.png');
-
                 await page.locator('#ctl00_MainContent_BtnBusqueda').click();
 
                 const successSelector = '#ctl00_MainContent_PnlResultados';
@@ -80,26 +75,22 @@ wss.on('connection', (ws) => {
                 }
                 
                 console.log('¡CAPTCHA correcto! Extrayendo datos...');
-                await page.screenshot({ path: 'debug-after-click.png' });
-                console.log('Captura de depuración guardada: debug-after-click.png');
 
                 const getText = async (page: Page, selector: string) => (await page.locator(selector).first().textContent())?.trim() ?? '';
+                
+                // ✅ ¡CORREGIDO! Usando los selectores de ID correctos que encontraste.
                 const scrapedData = {
                     rfcEmisor: await getText(page, '#ctl00_MainContent_LblRfcEmisor'),
                     nombreEmisor: await getText(page, '#ctl00_MainContent_LblNombreEmisor'),
                     rfcReceptor: await getText(page, '#ctl00_MainContent_LblRfcReceptor'),
                     nombreReceptor: await getText(page, '#ctl00_MainContent_LblNombreReceptor'),
-                    folioFiscal: await getText(page, '#ctl00_MainContent_LbllUuid'),
+                    folioFiscal: await getText(page, '#ctl00_MainContent_LblUuid'),
                     fechaExpedicion: await getText(page, '#ctl00_MainContent_LblFechaEmision'),
                     totalCfdi: await getText(page, '#ctl00_MainContent_LblMonto'),
                     efectoComprobante: await getText(page, '#ctl00_MainContent_LblEfectoComprobante'),
                     estadoCfdi: await getText(page, '#ctl00_MainContent_LblEstado'),
                     estatusCancelacion: await getText(page, '#ctl00_MainContent_LblEsCancelable'),
                 };
-
-                // ✅ SEGUNDA CAPTURA DE PANTALLA: Justo después de extraer los datos.
-                await page.screenshot({ path: 'debug-results.png' });
-                console.log('Captura de resultados guardada: debug-results.png');
 
                 // Enviamos los datos finales al cliente
                 ws.send(JSON.stringify({

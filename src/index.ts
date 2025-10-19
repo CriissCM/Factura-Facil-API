@@ -61,52 +61,54 @@ wss.on('connection', (ws) => {
                 await page.locator('#ctl00_MainContent_TxtCaptchaNumbers').type(captchaSolution);
                 await page.locator('#ctl00_MainContent_BtnBusqueda').click();
 
-                // ✅ ¡CAMBIO CLAVE! Esperamos a que aparezca el panel de resultados (éxito)
-                // O el panel de error (fallo). Lo que ocurra primero.
                 const successSelector = '#ctl00_MainContent_PnlResultados';
-                const errorSelector = '#ctl00_MainContent_pnlErrorCaptcha'; // Usando el ID que sugeriste.
+                const errorSelector = '#ctl00_MainContent_pnlErrorCaptcha';
 
                 await Promise.race([
                     page.waitForSelector(successSelector, { state: 'visible', timeout: 15000 }),
                     page.waitForSelector(errorSelector, { state: 'visible', timeout: 15000 }),
                 ]);
                 
-                // Verificamos si lo que apareció fue el panel de error.
                 if (await page.locator(errorSelector).isVisible()) {
-                    throw new Error('El CAPTCHA es incorrecto.');
+                    // Extraemos el texto del error real de la página
+                    const errorText = await page.locator('#ctl00_MainContent_lblError').textContent();
+                    throw new Error(errorText || 'El CAPTCHA es incorrecto.');
                 }
                 
                 console.log('¡CAPTCHA correcto! Extrayendo datos...');
-
-                const getText = async (selector: string) => (await page.locator(selector).first().textContent())?.trim() ?? '';
+                
+                // ✅ CORREGIDO: Pasamos 'page' como argumento para evitar el error de 'null'.
+                const getText = async (page: Page, selector: string) => (await page.locator(selector).first().textContent())?.trim() ?? '';
                 const scrapedData = {
-                    rfcEmisor: await getText('#ctl00_MainContent_LblRfcEmisor'),
-                    nombreEmisor: await getText('#ctl00_MainContent_LblNombreEmisor'),
-                    rfcReceptor: await getText('#ctl00_MainContent_LblRfcReceptor'),
-                    nombreReceptor: await getText('#ctl00_MainContent_LblNombreReceptor'),
-                    folioFiscal: await getText('#ctl00_MainContent_LblFolioFiscal'),
-                    fechaExpedicion: await getText('#ctl00_MainContent_LblFechaExpedicion'),
-                    totalCfdi: await getText('#ctl00_MainContent_LblTotal'),
-                    efectoComprobante: await getText('#ctl00_MainContent_LblEfecto'),
-                    estadoCfdi: await getText('#ctl00_MainContent_LblEstado'),
-                    estatusCancelacion: await getText('#ctl00_MainContent_LblEstatusCancelacion'),
+                    rfcEmisor: await getText(page, '#ctl00_MainContent_LblRfcEmisor'),
+                    nombreEmisor: await getText(page, '#ctl00_MainContent_LblNombreEmisor'),
+                    rfcReceptor: await getText(page, '#ctl00_MainContent_LblRfcReceptor'),
+                    nombreReceptor: await getText(page, '#ctl00_MainContent_LblNombreReceptor'),
+                    folioFiscal: await getText(page, '#ctl00_MainContent_LblFolioFiscal'),
+                    fechaExpedicion: await getText(page, '#ctl00_MainContent_LblFechaExpedicion'),
+                    totalCfdi: await getText(page, '#ctl00_MainContent_LblTotal'),
+                    efectoComprobante: await getText(page, '#ctl00_MainContent_LblEfecto'),
+                    estadoCfdi: await getText(page, '#ctl00_MainContent_LblEstado'),
+                    estatusCancelacion: await getText(page, '#ctl00_MainContent_LblEstatusCancelacion'),
                 };
 
-                // Enviamos los datos finales al cliente
                 ws.send(JSON.stringify({
                     type: 'SCRAPE_SUCCESS',
                     payload: scrapedData
                 }));
 
-                // Cerramos el navegador y la conexión
                 if (browser) await browser.close();
                 ws.close();
             }
 
         } catch (error) {
-            const errorMessage = error.message.includes('Timeout') 
-                ? 'El CAPTCHA es incorrecto o la página del SAT no respondió.' 
-                : error.message;
+            // ✅ CORREGIDO: Verificamos el tipo de 'error' antes de acceder a '.message'.
+            let errorMessage = 'Ocurrió un error desconocido en el servidor.';
+            if (error instanceof Error) {
+                errorMessage = error.message.includes('Timeout') 
+                    ? 'El CAPTCHA es incorrecto o la página del SAT no respondió.' 
+                    : error.message;
+            }
             console.error('Error en la conexión WebSocket:', errorMessage);
             ws.send(JSON.stringify({ type: 'ERROR', payload: { message: errorMessage } }));
             if (browser) await browser.close();
@@ -116,7 +118,6 @@ wss.on('connection', (ws) => {
 
     ws.on('close', async () => {
         console.log('Cliente desconectado.');
-        // Nos aseguramos de que el navegador se cierre si el cliente se desconecta.
         if (browser) await browser.close();
     });
 });

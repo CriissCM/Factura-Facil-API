@@ -61,6 +61,8 @@ wss.on('connection', (ws) => {
                 await page.locator('#ctl00_MainContent_TxtCaptchaNumbers').type(captchaSolution);
                 await page.locator('#ctl00_MainContent_BtnBusqueda').click();
 
+                // ✅ ¡CAMBIO CLAVE! Esperamos a que aparezca el panel de resultados (éxito)
+                // O el panel de error (fallo). Lo que ocurra primero.
                 const successSelector = '#ctl00_MainContent_PnlResultados';
                 const errorSelector = '#ctl00_MainContent_pnlErrorCaptcha';
 
@@ -69,27 +71,26 @@ wss.on('connection', (ws) => {
                     page.waitForSelector(errorSelector, { state: 'visible', timeout: 15000 }),
                 ]);
                 
+                // Verificamos si lo que apareció fue el panel de error.
                 if (await page.locator(errorSelector).isVisible()) {
-                    // Extraemos el texto del error real de la página
                     const errorText = await page.locator('#ctl00_MainContent_lblError').textContent();
                     throw new Error(errorText || 'El CAPTCHA es incorrecto.');
                 }
                 
                 console.log('¡CAPTCHA correcto! Extrayendo datos...');
-                
-                // ✅ CORREGIDO: Pasamos 'page' como argumento para evitar el error de 'null'.
+
                 const getText = async (page: Page, selector: string) => (await page.locator(selector).first().textContent())?.trim() ?? '';
                 const scrapedData = {
                     rfcEmisor: await getText(page, '#ctl00_MainContent_LblRfcEmisor'),
                     nombreEmisor: await getText(page, '#ctl00_MainContent_LblNombreEmisor'),
                     rfcReceptor: await getText(page, '#ctl00_MainContent_LblRfcReceptor'),
                     nombreReceptor: await getText(page, '#ctl00_MainContent_LblNombreReceptor'),
-                    folioFiscal: await getText(page, '#ctl00_MainContent_LblFolioFiscal'),
-                    fechaExpedicion: await getText(page, '#ctl00_MainContent_LblFechaExpedicion'),
-                    totalCfdi: await getText(page, '#ctl00_MainContent_LblTotal'),
-                    efectoComprobante: await getText(page, '#ctl00_MainContent_LblEfecto'),
+                    folioFiscal: await getText(page, '#ctl00_MainContent_LblUuid'),
+                    fechaExpedicion: await getText(page, '#ctl00_MainContent_LblFechaEmision'),
+                    totalCfdi: await getText(page, '#ctl00_MainContent_LblMonto'),
+                    efectoComprobante: await getText(page, '#ctl00_MainContent_LblEfectoComprobante'),
                     estadoCfdi: await getText(page, '#ctl00_MainContent_LblEstado'),
-                    estatusCancelacion: await getText(page, '#ctl00_MainContent_LblEstatusCancelacion'),
+                    estatusCancelacion: await getText(page, '#ctl00_MainContent_LblEsCacelale'),
                 };
 
                 ws.send(JSON.stringify({
@@ -102,7 +103,6 @@ wss.on('connection', (ws) => {
             }
 
         } catch (error) {
-            // ✅ CORREGIDO: Verificamos el tipo de 'error' antes de acceder a '.message'.
             let errorMessage = 'Ocurrió un error desconocido en el servidor.';
             if (error instanceof Error) {
                 errorMessage = error.message.includes('Timeout') 

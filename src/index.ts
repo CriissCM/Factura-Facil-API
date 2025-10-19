@@ -80,6 +80,8 @@ wss.on('connection', (ws) => {
                 }
                 
                 console.log('¡CAPTCHA correcto! Extrayendo datos...');
+                await page.screenshot({ path: 'debug-after-click.png' });
+                console.log('Captura de depuración guardada: debug-after-click.png');
 
                 const getText = async (page: Page, selector: string) => (await page.locator(selector).first().textContent())?.trim() ?? '';
                 const scrapedData = {
@@ -87,12 +89,12 @@ wss.on('connection', (ws) => {
                     nombreEmisor: await getText(page, '#ctl00_MainContent_LblNombreEmisor'),
                     rfcReceptor: await getText(page, '#ctl00_MainContent_LblRfcReceptor'),
                     nombreReceptor: await getText(page, '#ctl00_MainContent_LblNombreReceptor'),
-                    folioFiscal: await getText(page, '#ctl00_MainContent_LblFolioFiscal'),
-                    fechaExpedicion: await getText(page, '#ctl00_MainContent_LblFechaExpedicion'),
-                    totalCfdi: await getText(page, '#ctl00_MainContent_LblTotal'),
-                    efectoComprobante: await getText(page, '#ctl00_MainContent_LblEfecto'),
+                    folioFiscal: await getText(page, '#ctl00_MainContent_LbllUuid'),
+                    fechaExpedicion: await getText(page, '#ctl00_MainContent_LblFechaEmision'),
+                    totalCfdi: await getText(page, '#ctl00_MainContent_LblMonto'),
+                    efectoComprobante: await getText(page, '#ctl00_MainContent_LblEfectoComprobante'),
                     estadoCfdi: await getText(page, '#ctl00_MainContent_LblEstado'),
-                    estatusCancelacion: await getText(page, '#ctl00_MainContent_LblEstatusCancelacion'),
+                    estatusCancelacion: await getText(page, '#ctl00_MainContent_LblEsCancelable'),
                 };
 
                 // ✅ SEGUNDA CAPTURA DE PANTALLA: Justo después de extraer los datos.
